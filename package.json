@@ -1,0 +1,14 @@
+{
+  "name": "weak-value-map",
+  "version": "0.1.0",
+  "description": "A collection of key/value pairs in which the values are weakly referenced.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --expose-gc test"
+  },
+  "author": "Andre Mapili",
+  "license": "MIT",
+  "devDependencies": {
+    "tape": "^4.5.1"
+  }
+}
