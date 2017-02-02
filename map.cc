@@ -76,10 +76,11 @@ private:
 
 		WeakValue val(obj->map, key, std::move(value));
 
-		val.value.SetWeak(val.pair, [](const v8::WeakCallbackData<v8::Value, MapKeyPair>& data) {
+		auto finalizationCb = [](const v8::WeakCallbackInfo<MapKeyPair>& data) {
 			auto p = data.GetParameter();
 			p->first->erase(p->second);
-		});
+		};
+		val.value.SetWeak(val.pair, finalizationCb, v8::WeakCallbackType::kParameter);
 		obj->map->insert(std::make_pair(key, std::move(val)));
 
 		args.GetReturnValue().Set(args.Holder());
