@@ -2,6 +2,7 @@
 #include <node_object_wrap.h>
 #include <unordered_map>
 #include <cstdint>
+#include <string>
 
 struct WeakValue;
 
