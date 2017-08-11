@@ -3,7 +3,7 @@
   "version": "0.1.2",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kriszyp/leveldown.git"
+    "url": "https://github.com/kriszyp/weak-value-map.git"
   },
   "description": "A collection of key/value pairs in which the values are weakly referenced.",
   "main": "index.js",
