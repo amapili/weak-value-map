@@ -1,6 +1,10 @@
 {
   "name": "weak-value-map",
-  "version": "0.1.1",
+  "version": "0.1.2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kriszyp/leveldown.git"
+  },
   "description": "A collection of key/value pairs in which the values are weakly referenced.",
   "main": "index.js",
   "scripts": {
@@ -8,7 +12,12 @@
   },
   "author": "Andre Mapili",
   "license": "MIT",
+  "dependencies": {
+    "prebuild-install": "^2.1.0"
+  },
   "devDependencies": {
+    "prebuild": "^6.0.2",
+    "prebuild-ci": "^2.0.0",
     "tape": "^4.5.1"
   }
 }
