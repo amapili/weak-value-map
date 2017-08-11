@@ -19,5 +19,8 @@
     "prebuild": "^6.0.2",
     "prebuild-ci": "^2.0.0",
     "tape": "^4.5.1"
+  },
+  "scripts": {
+    "install": "prebuild-install || node-gyp rebuild"
   }
 }
