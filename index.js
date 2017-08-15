@@ -9,6 +9,5 @@ if (fs.existsSync(path.join(__dirname, 'build/Release/cppmap.node'))) {
     console.log("weak-value-map loaded debug build");
     module.exports = require('./build/Debug/cppmap').WeakValueMap;
 } else {
-    console.error("weak-value-map not built!");
-    process.exit(1);
+    throw new Error("weak-value-map not built!");
 }
