@@ -1,5 +1,5 @@
 #include <node.h>
-#include <node_object_wrap.h>
+#include "object_wrap.h"
 #include <unordered_map>
 #include <cstdint>
 #include <string>
@@ -40,7 +40,7 @@ struct WeakValue {
 	}
 };
 
-class WeakValueMap : public node::ObjectWrap {
+class WeakValueMap : public ObjectWrap {
 public:
 	static void Init(v8::Local<v8::Object> exports) {
 		v8::Isolate* isolate = exports->GetIsolate();
