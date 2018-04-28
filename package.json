@@ -1,6 +1,6 @@
 {
   "name": "weak-value-map",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "repository": {
     "type": "git",
     "url": "https://github.com/kriszyp/weak-value-map.git"
