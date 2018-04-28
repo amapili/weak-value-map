@@ -31,15 +31,15 @@ test('gc', function(assert) {
 	map.set(2, obj2);
 	assert.deepEqual(map.get(1), obj);
 	assert.deepEqual(map.get(2), obj);
-	global.gc();
+	eval(""); gc();
 	assert.deepEqual(map.get(1), obj);
 	assert.deepEqual(map.get(2), obj);
 	obj2 = null;
-	global.gc();
+	eval(""); gc();
 	assert.deepEqual(map.get(1), obj);
 	assert.strictEqual(map.get(2), void 0);
 	obj1 = null;
-	global.gc();
+	eval(""); gc();
 	assert.strictEqual(map.get(1), void 0);
 	assert.strictEqual(map.get(2), void 0);
 	assert.end();
