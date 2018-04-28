@@ -13,12 +13,16 @@ test('map', function(assert) {
 	var d2 = new Date(d1);
 	map.set(5, d1);
 	map.set(6, {6: 'six'});
-	assert.equal(map.get(1), 'one');
+	assert.strictEqual(map.get(1), 'one');
 	assert.strictEqual(map.get(2), 2);
 	assert.strictEqual(map.get(3), true);
 	assert.strictEqual(map.get(4), false);
 	assert.strictEqual(map.get(5).getTime(), d2.getTime());
 	assert.deepEqual(map.get(6), {6: 'six'});
+	map.set(1, 'changed');
+	assert.strictEqual(map.get(1), 'changed');
+	map.delete(1);
+	assert.strictEqual(map.get(1), undefined);
 	assert.end();
 });
 
@@ -37,10 +41,10 @@ test('gc', function(assert) {
 	obj2 = null;
 	eval(""); gc();
 	assert.deepEqual(map.get(1), obj);
-	assert.strictEqual(map.get(2), void 0);
+	assert.strictEqual(map.get(2), undefined);
 	obj1 = null;
 	eval(""); gc();
-	assert.strictEqual(map.get(1), void 0);
-	assert.strictEqual(map.get(2), void 0);
+	assert.strictEqual(map.get(1), undefined);
+	assert.strictEqual(map.get(2), undefined);
 	assert.end();
 });
