@@ -9,10 +9,12 @@ inline v8::PropertyAttribute &operator |= ( v8::PropertyAttribute &a, v8::Proper
 	return a = a | b;
 }
 
+
 inline v8::Local<v8::String> intern_string( v8::Isolate *isolate, char const *s ) {
 	auto type = v8::NewStringType::kInternalized;
 	return v8::String::NewFromUtf8( isolate, s, type ).ToLocalChecked();
 }
+
 
 struct ClassBuilder {
 	v8::Isolate *isolate;
