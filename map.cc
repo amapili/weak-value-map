@@ -5,48 +5,48 @@
 #include <tuple>
 #include <string>
 
-struct Element;
+using Args = v8::FunctionCallbackInfo<v8::Value> const;
+using PropArgs = v8::PropertyCallbackInfo<v8::Value> const;
 
-using Key = std::string;
-using Map = std::unordered_map< Key, Element >;
-
-struct Element {
-	Map &map;
-	Key const key;
-	v8::Global<v8::Value> value;
-
-	static void finalizationCb(v8::WeakCallbackInfo<Element> const &data) {
-		auto element = data.GetParameter();
-		element->map.erase(element->key);
-	}
-
-	void set(v8::Isolate *isolate, v8::Local<v8::Value> handle) {
-		value.Reset(isolate, handle);
-		value.SetWeak(this, finalizationCb, v8::WeakCallbackType::kParameter);
-		value.MarkIndependent();
-	}
-
-	Element( Map &map, Key const &key ) : map{map}, key{key} {};
-};
 
 class WeakValueMap : public ObjectWrap {
 public:
-	static void Init( v8::Local<v8::Object> _exports ) {
-		ObjectBuilder exports { v8::Isolate::GetCurrent(), _exports };
+	//-------- public types ---------------------------------------------------------------
 
-		exports.add_class( "WeakValueMap", constructor, []( ClassBuilder cls ) {
-			cls.set_internal_field_count( 1 );
-			cls.add_property( "size", size_getter );
-			cls.add_method( "get",    wrap<&WeakValueMap::get_method> );
-			cls.add_method( "set",    wrap<&WeakValueMap::set_method> );
-			cls.add_method( "delete", wrap<&WeakValueMap::delete_method> );
-		});
-	}
+	using Key = std::string;
 
 private:
+	//-------- private types --------------------------------------------------------------
+
+	struct Element;
+
+	using Map = std::unordered_map< Key, Element >;
+
+	struct Element {
+		Map &map;
+		Key const key;
+		v8::Global<v8::Value> value;
+
+		static void gc_callback( v8::WeakCallbackInfo<Element> const &info ) {
+			auto element = info.GetParameter();
+			element->map.erase( element->key );
+		}
+
+		void set( v8::Isolate *isolate, v8::Local<v8::Value> handle ) {
+			value.Reset( isolate, handle );
+			value.SetWeak( this, gc_callback, v8::WeakCallbackType::kParameter );
+			value.MarkIndependent();
+		}
+
+		Element( Map &map, Key const &key ) : map{map}, key{key} {};
+	};
+
+	//-------- private members ------------------------------------------------------------
+
 	Map map;
 
-	using Args = v8::FunctionCallbackInfo<v8::Value> const;
+public:
+	//-------- constructor ----------------------------------------------------------------
 
 	static void constructor( Args &args ) {
 		auto isolate = args.GetIsolate();
@@ -64,20 +64,29 @@ private:
 		args.GetReturnValue().Set(args.This());
 	}
 
-	static void size_getter( v8::Local<v8::String>, v8::PropertyCallbackInfo<v8::Value> const &info ) {
-		auto obj = ObjectWrap::Unwrap<WeakValueMap>( info.Holder() );
-		info.GetReturnValue().Set( (uint32_t) obj->map.size() );
+	//-------- callback wrappers ----------------------------------------------------------
+
+	template< void (WeakValueMap::*getter)( PropArgs & ) >
+	static void wrap( v8::Local<v8::String> prop, PropArgs &args ) {
+		auto obj = ObjectWrap::Unwrap<WeakValueMap>( args.Holder() );
+		(obj->*getter)( args );
 	}
 
-	using method_t = void (WeakValueMap::*)( Args &args, Key const &key );
-
-	template< method_t method >
+	template< void (WeakValueMap::*method)( Args &, Key const & ) >
 	static void wrap( Args &args ) {
 		auto obj = ObjectWrap::Unwrap<WeakValueMap>( args.Holder() );
 		auto &&key = v8::String::Utf8Value{ args.GetIsolate(), args[0]->ToString() };
 		if( *key )
 			(obj->*method)( args, *key );
 	}
+
+	//-------- properties -----------------------------------------------------------------
+
+	void size_getter( PropArgs &args ) {
+		args.GetReturnValue().Set( (uint32_t) map.size() );
+	}
+
+	//-------- methods --------------------------------------------------------------------
 
 	void get_method( Args &args, Key const &key ) {
 		auto i = map.find( key );
@@ -105,4 +114,21 @@ private:
 	}
 };
 
-NODE_MODULE(addon, WeakValueMap::Init)
+
+//-------- module initialization --------------------------------------------------------------
+
+void initialize( v8::Local<v8::Object> exports, v8::Local<v8::Value> module,
+		v8::Local<v8::Context> context )
+{
+	ObjectBuilder exp { context->GetIsolate(), exports };
+
+	exp.add_class( "WeakValueMap", WeakValueMap::constructor, []( ClassBuilder cls ) {
+		cls.set_internal_field_count( 1 );
+		cls.add_property( "size", WeakValueMap::wrap<&WeakValueMap::size_getter> );
+		cls.add_method( "get",    WeakValueMap::wrap<&WeakValueMap::get_method> );
+		cls.add_method( "set",    WeakValueMap::wrap<&WeakValueMap::set_method> );
+		cls.add_method( "delete", WeakValueMap::wrap<&WeakValueMap::delete_method> );
+	});
+}
+
+NODE_MODULE_CONTEXT_AWARE( WeakValueMap, initialize )
