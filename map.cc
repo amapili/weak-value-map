@@ -1,106 +1,164 @@
 #include <node.h>
 #include "object_wrap.h"
+#include "utility.h"
 #include <unordered_map>
 #include <tuple>
 #include <string>
 
-namespace {
+using Args = v8::FunctionCallbackInfo<v8::Value> const;
+using PropArgs = v8::PropertyCallbackInfo<v8::Value> const;
 
-struct Element;
-
-using Map = std::unordered_map< std::string, Element >;
-
-struct Element {
-	Map &map;
-	std::string const key;
-	v8::Global<v8::Value> value;
-
-	static void finalizationCb(v8::WeakCallbackInfo<Element> const &data) {
-		auto element = data.GetParameter();
-		element->map.erase(element->key);
-	}
-
-	void set(v8::Isolate *isolate, v8::Local<v8::Value> handle) {
-		value.Reset(isolate, handle);
-		value.SetWeak(this, finalizationCb, v8::WeakCallbackType::kParameter);
-		value.MarkIndependent();
-	}
-
-	Element(Map &map, std::string key) : map{map}, key{key} {};
-};
-
-}  // anonymous namespace
 
 class WeakValueMap : public ObjectWrap {
 public:
-	static void Init(v8::Local<v8::Object> exports) {
-		auto isolate = exports->GetIsolate();
+	//-------- public types ---------------------------------------------------------------
 
-		//Create constructor funtion template
-		auto tpl = v8::FunctionTemplate::New(isolate, New);
-		tpl->SetClassName(v8::String::NewFromUtf8(isolate, "WeakValueMap"));
-		tpl->InstanceTemplate()->SetInternalFieldCount(1);
-
-		//Set class prototype methods
-		NODE_SET_PROTOTYPE_METHOD(tpl, "set", Set);
-		NODE_SET_PROTOTYPE_METHOD(tpl, "delete", Delete);
-		NODE_SET_PROTOTYPE_METHOD(tpl, "get", Get);
-
-		exports->Set(v8::String::NewFromUtf8(isolate, "WeakValueMap"), tpl->GetFunction());
-	}
+	using Key = std::string;
 
 private:
+	//-------- map implementation: types --------------------------------------------------
+
+	struct Element;
+
+	using Map = std::unordered_map< Key, Element >;
+
+	struct Element {
+		Map &map;
+		Key const key;
+		v8::Global<v8::Value> value;
+
+		static void gc_callback( v8::WeakCallbackInfo<Element> const &info ) {
+			auto element = info.GetParameter();
+			element->map.erase( element->key );
+		}
+
+		void set( v8::Isolate *isolate, v8::Local<v8::Value> handle ) {
+			value.Reset( isolate, handle );
+			value.SetWeak( this, gc_callback, v8::WeakCallbackType::kParameter );
+			value.MarkIndependent();
+		}
+
+		Element( Map &map, Key const &key ) : map{map}, key{key} {};
+	};
+
+	//-------- map implementation: fields -------------------------------------------------
+
 	Map map;
 
-	static void New(v8::FunctionCallbackInfo<v8::Value> const &args) {
+	//-------- map implementation: methods ------------------------------------------------
+
+	size_t size() {
+		return map.size();
+	}
+
+	template< typename Callback >
+	void find( Key const &key, Callback callback ) {
+		auto i = map.find( key );
+		if( i != map.end() )
+			callback( i->second );
+	}
+
+	Element &find_or_insert( Key const &key ) {
+		auto i = map.emplace( std::piecewise_construct,
+				std::forward_as_tuple( key ),
+				std::forward_as_tuple( map, key ) ).first;
+		return i->second;
+	}
+
+	bool remove( Key const &key ) {
+		return map.erase( key );
+	}
+
+public:
+	//-------- constructor ----------------------------------------------------------------
+
+	static void constructor( Args &args ) {
 		auto isolate = args.GetIsolate();
 
 		//Make sure this is a new-call or throw a type error
 		if (!args.IsConstructCall()) {
-			auto msg = v8::String::NewFromUtf8(isolate, "Constructor WeakValueMap requires 'new'");
+			auto msg = intern_string( isolate, "Class constructor "
+					"WeakValueMap cannot be invoked without 'new'" );
 			isolate->ThrowException(v8::Exception::TypeError(msg));
 			return;
 		}
 
 		auto obj = new WeakValueMap();
-		obj->Wrap(args.This());
-		args.GetReturnValue().Set(args.This());
+		obj->Wrap( isolate, args.This() );
+		args.GetReturnValue().Set( args.This() );
 	}
 
-	static void Set(v8::FunctionCallbackInfo<v8::Value> const &args) {
-		//Delete from the map if the value to insert is undefined
-		if (args[1]->IsUndefined())
-			return WeakValueMap::Delete(args);
+	//-------- callback wrappers ----------------------------------------------------------
 
+	template< void (WeakValueMap::*getter)( PropArgs & ) >
+	static void wrap( v8::Local<v8::String> prop, PropArgs &args ) {
+		auto obj = ObjectWrap::Unwrap<WeakValueMap>( args.Holder() );
+		(obj->*getter)( args );
+	}
+
+	template< void (WeakValueMap::*method)( Args &, Key const & ) >
+	static void wrap( Args &args ) {
 		auto isolate = args.GetIsolate();
-		auto obj = ObjectWrap::Unwrap<WeakValueMap>(args.Holder());
+		auto context = isolate->GetCurrentContext();
 
-		auto key = std::string(*v8::String::Utf8Value(args[0]->ToString()));
-		auto i = obj->map.emplace( std::piecewise_construct,
-				std::forward_as_tuple(key),
-				std::forward_as_tuple(obj->map, key)).first;
-		i->second.set(isolate, args[1]);
+		auto key = v8::Local<v8::String>{};
+		if( ! args[0]->ToString( context ).ToLocal( &key ) )
+			return;
 
-		args.GetReturnValue().Set(args.Holder());
+		auto &&keybuf = v8::String::Utf8Value{ isolate, key };
+		assert( *keybuf != NULL );
+
+		auto obj = ObjectWrap::Unwrap<WeakValueMap>( args.Holder() );
+		(obj->*method)( args, *keybuf );
 	}
 
-	static void Delete(v8::FunctionCallbackInfo<v8::Value> const &args) {
-		auto obj = ObjectWrap::Unwrap<WeakValueMap>(args.Holder());
+	//-------- properties -----------------------------------------------------------------
 
-		auto key = std::string(*v8::String::Utf8Value(args[0]->ToString()));
-		obj->map.erase(key);
-
-		args.GetReturnValue().Set(args.Holder());
+	void size_getter( PropArgs &args ) {
+		args.GetReturnValue().Set( (uint32_t) size() );
 	}
 
-	static void Get(v8::FunctionCallbackInfo<v8::Value> const &args) {
-		auto obj = ObjectWrap::Unwrap<WeakValueMap>(args.Holder());
+	//-------- methods --------------------------------------------------------------------
 
-		auto key = std::string(*v8::String::Utf8Value(args[0]->ToString()));
-		auto i = obj->map.find(key);
-		if (i != obj->map.end())
-			args.GetReturnValue().Set(i->second.value);
+	void get_method( Args &args, Key const &key ) {
+		find( key, [&]( Element &element ) {
+			args.GetReturnValue().Set( element.value );
+		});
+	}
+
+	void set_method( Args &args, Key const &key ) {
+		//Delete from the map if the value to insert is undefined
+		if( args[1]->IsUndefined() )
+			return delete_method( args, key );
+
+		auto &element = find_or_insert( key );
+		element.set( args.GetIsolate(), args[1] );
+
+		args.GetReturnValue().Set( args.This() );
+	}
+
+	void delete_method( Args &args, Key const &key ) {
+		remove( key );
+
+		args.GetReturnValue().Set( args.This() );
 	}
 };
 
-NODE_MODULE(addon, WeakValueMap::Init)
+
+//-------- module initialization --------------------------------------------------------------
+
+void initialize( v8::Local<v8::Object> exports, v8::Local<v8::Value> module,
+		v8::Local<v8::Context> context )
+{
+	ObjectBuilder exp { context, exports };
+
+	exp.add_class( "WeakValueMap", WeakValueMap::constructor, []( ClassBuilder cls ) {
+		cls.set_internal_field_count( 1 );
+		cls.add_property( "size", WeakValueMap::wrap<&WeakValueMap::size_getter> );
+		cls.add_method( "get",    WeakValueMap::wrap<&WeakValueMap::get_method> );
+		cls.add_method( "set",    WeakValueMap::wrap<&WeakValueMap::set_method> );
+		cls.add_method( "delete", WeakValueMap::wrap<&WeakValueMap::delete_method> );
+	});
+}
+
+NODE_MODULE_CONTEXT_AWARE( WeakValueMap, initialize )
