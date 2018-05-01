@@ -57,7 +57,7 @@ class ObjectWrap {
   }
 
 
-  inline v8::Persistent<v8::Object>& persistent() {
+  inline v8::Global<v8::Object>& persistent() {
     return handle_;
   }
 
@@ -124,5 +124,5 @@ class ObjectWrap {
     delete wrap;
   }
 
-  v8::Persistent<v8::Object> handle_;
+  v8::Global<v8::Object> handle_;
 };
