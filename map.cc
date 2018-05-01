@@ -60,8 +60,8 @@ public:
 		}
 
 		auto obj = new WeakValueMap();
-		obj->Wrap(args.This());
-		args.GetReturnValue().Set(args.This());
+		obj->Wrap( isolate, args.This() );
+		args.GetReturnValue().Set( args.This() );
 	}
 
 	//-------- callback wrappers ----------------------------------------------------------
@@ -74,10 +74,18 @@ public:
 
 	template< void (WeakValueMap::*method)( Args &, Key const & ) >
 	static void wrap( Args &args ) {
+		auto isolate = args.GetIsolate();
+		auto context = isolate->GetCurrentContext();
+
+		auto key = v8::Local<v8::String>{};
+		if( ! args[0]->ToString( context ).ToLocal( &key ) )
+			return;
+
+		auto &&keybuf = v8::String::Utf8Value{ isolate, key };
+		assert( *keybuf != NULL );
+
 		auto obj = ObjectWrap::Unwrap<WeakValueMap>( args.Holder() );
-		auto &&key = v8::String::Utf8Value{ args.GetIsolate(), args[0]->ToString() };
-		if( *key )
-			(obj->*method)( args, *key );
+		(obj->*method)( args, *keybuf );
 	}
 
 	//-------- properties -----------------------------------------------------------------

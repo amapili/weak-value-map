@@ -52,11 +52,6 @@ class ObjectWrap {
   }
 
 
-  inline v8::Local<v8::Object> handle() {
-    return handle(v8::Isolate::GetCurrent());
-  }
-
-
   inline v8::Local<v8::Object> handle(v8::Isolate* isolate) {
     return v8::Local<v8::Object>::New(isolate, persistent());
   }
@@ -68,11 +63,11 @@ class ObjectWrap {
 
 
  protected:
-  inline void Wrap(v8::Local<v8::Object> handle) {
+  inline void Wrap(v8::Isolate* isolate, v8::Local<v8::Object> handle) {
     assert(persistent().IsEmpty());
     assert(handle->InternalFieldCount() > 0);
     handle->SetAlignedPointerInInternalField(0, this);
-    persistent().Reset(v8::Isolate::GetCurrent(), handle);
+    persistent().Reset(isolate, handle);
     MakeWeak();
   }
 
