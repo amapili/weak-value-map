@@ -120,7 +120,7 @@ public:
 void initialize( v8::Local<v8::Object> exports, v8::Local<v8::Value> module,
 		v8::Local<v8::Context> context )
 {
-	ObjectBuilder exp { context->GetIsolate(), exports };
+	ObjectBuilder exp { context, exports };
 
 	exp.add_class( "WeakValueMap", WeakValueMap::constructor, []( ClassBuilder cls ) {
 		cls.set_internal_field_count( 1 );

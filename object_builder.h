@@ -45,16 +45,20 @@ struct ClassBuilder {
 };
 
 struct ObjectBuilder {
-	v8::Isolate *isolate;
+	v8::Local<v8::Context> context;
 	v8::Local<v8::Object> target;
 
 	void add_class( char const *name, v8::FunctionCallback constructor,
 			void (*body)( ClassBuilder ) )
 	{
+		auto isolate = context->GetIsolate();
 		auto cls = v8::FunctionTemplate::New( isolate, constructor, {} );
 		auto cls_name = intern_string( isolate, name );
 		cls->SetClassName( cls_name );
+
 		body( { isolate, cls } );
-		target->Set( cls_name, cls->GetFunction() );
+
+		auto fun = cls->GetFunction( context ).ToLocalChecked();
+		target->Set( context, cls_name, fun ).ToChecked();
 	}
 };
