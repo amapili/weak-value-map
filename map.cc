@@ -53,7 +53,8 @@ private:
 
 		//Make sure this is a new-call or throw a type error
 		if (!args.IsConstructCall()) {
-			auto msg = v8::String::NewFromUtf8(isolate, "Constructor WeakValueMap requires 'new'");
+			auto msg = intern_string( isolate, "Class constructor "
+					"WeakValueMap cannot be invoked without 'new'" );
 			isolate->ThrowException(v8::Exception::TypeError(msg));
 			return;
 		}
