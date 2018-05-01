@@ -22,12 +22,14 @@ struct ClassBuilder {
 		cls->InstanceTemplate()->SetInternalFieldCount( value );
 	}
 
-	void add_method( char const *name, v8::FunctionCallback callback ) {
+	void add_method( char const *name, v8::FunctionCallback callback,
+			v8::PropertyAttribute attributes = v8::DontEnum )
+	{
 		auto signature = v8::Signature::New( isolate, cls );
 		auto fun = v8::FunctionTemplate::New( isolate, callback, {}, signature );
 		auto fun_name = intern_string( isolate, name );
 		auto prototype = cls->PrototypeTemplate();
-		prototype->Set( fun_name, fun );
+		prototype->Set( fun_name, fun, attributes );
 	}
 
 	void add_property( char const *name, v8::AccessorGetterCallback getter,
