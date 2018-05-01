@@ -16,7 +16,7 @@ public:
 	using Key = std::string;
 
 private:
-	//-------- private types --------------------------------------------------------------
+	//-------- map implementation: types --------------------------------------------------
 
 	struct Element;
 
@@ -41,9 +41,33 @@ private:
 		Element( Map &map, Key const &key ) : map{map}, key{key} {};
 	};
 
-	//-------- private members ------------------------------------------------------------
+	//-------- map implementation: fields -------------------------------------------------
 
 	Map map;
+
+	//-------- map implementation: methods ------------------------------------------------
+
+	size_t size() {
+		return map.size();
+	}
+
+	template< typename Callback >
+	void find( Key const &key, Callback callback ) {
+		auto i = map.find( key );
+		if( i != map.end() )
+			callback( i->second );
+	}
+
+	Element &find_or_insert( Key const &key ) {
+		auto i = map.emplace( std::piecewise_construct,
+				std::forward_as_tuple( key ),
+				std::forward_as_tuple( map, key ) ).first;
+		return i->second;
+	}
+
+	bool remove( Key const &key ) {
+		return map.erase( key );
+	}
 
 public:
 	//-------- constructor ----------------------------------------------------------------
@@ -91,15 +115,15 @@ public:
 	//-------- properties -----------------------------------------------------------------
 
 	void size_getter( PropArgs &args ) {
-		args.GetReturnValue().Set( (uint32_t) map.size() );
+		args.GetReturnValue().Set( (uint32_t) size() );
 	}
 
 	//-------- methods --------------------------------------------------------------------
 
 	void get_method( Args &args, Key const &key ) {
-		auto i = map.find( key );
-		if( i != map.end() )
-			args.GetReturnValue().Set( i->second.value );
+		find( key, [&]( Element &element ) {
+			args.GetReturnValue().Set( element.value );
+		});
 	}
 
 	void set_method( Args &args, Key const &key ) {
@@ -107,16 +131,14 @@ public:
 		if( args[1]->IsUndefined() )
 			return delete_method( args, key );
 
-		auto i = map.emplace( std::piecewise_construct,
-				std::forward_as_tuple( key ),
-				std::forward_as_tuple( map, key ) ).first;
-		i->second.set( args.GetIsolate(), args[1] );
+		auto &element = find_or_insert( key );
+		element.set( args.GetIsolate(), args[1] );
 
 		args.GetReturnValue().Set( args.This() );
 	}
 
 	void delete_method( Args &args, Key const &key ) {
-		map.erase( key );
+		remove( key );
 
 		args.GetReturnValue().Set( args.This() );
 	}
