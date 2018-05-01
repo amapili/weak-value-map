@@ -5,8 +5,6 @@
 #include <tuple>
 #include <string>
 
-namespace {
-
 struct Element;
 
 using Key = std::string;
@@ -30,8 +28,6 @@ struct Element {
 
 	Element( Map &map, Key const &key ) : map{map}, key{key} {};
 };
-
-}  // anonymous namespace
 
 class WeakValueMap : public ObjectWrap {
 public:
