@@ -48,3 +48,17 @@ test('gc', function(assert) {
 	assert.strictEqual(map.get(2), undefined);
 	assert.end();
 });
+
+test('exception', function(assert) {
+	let map = new WeakValueMap();
+	let key = { toString() { throw 42 } };
+	let obj = {};
+	let err;
+	try {
+		map.set(key, obj);
+	} catch( e ) {
+		err = e;
+	}
+	assert.strictEqual(err, 42);
+	assert.end();
+});
