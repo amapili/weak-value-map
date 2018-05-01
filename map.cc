@@ -9,11 +9,12 @@ namespace {
 
 struct Element;
 
-using Map = std::unordered_map< std::string, Element >;
+using Key = std::string;
+using Map = std::unordered_map< Key, Element >;
 
 struct Element {
 	Map &map;
-	std::string const key;
+	Key const key;
 	v8::Global<v8::Value> value;
 
 	static void finalizationCb(v8::WeakCallbackInfo<Element> const &data) {
@@ -27,7 +28,7 @@ struct Element {
 		value.MarkIndependent();
 	}
 
-	Element(Map &map, std::string key) : map{map}, key{key} {};
+	Element( Map &map, Key const &key ) : map{map}, key{key} {};
 };
 
 }  // anonymous namespace
@@ -71,7 +72,7 @@ private:
 		info.GetReturnValue().Set( (uint32_t) obj->map.size() );
 	}
 
-	using method_t = void (WeakValueMap::*)( Args &args, std::string const &key );
+	using method_t = void (WeakValueMap::*)( Args &args, Key const &key );
 
 	template< method_t method >
 	static void wrap( Args &args ) {
@@ -81,13 +82,13 @@ private:
 			(obj->*method)( args, *key );
 	}
 
-	void get_method( Args &args, std::string const &key ) {
+	void get_method( Args &args, Key const &key ) {
 		auto i = map.find( key );
 		if( i != map.end() )
 			args.GetReturnValue().Set( i->second.value );
 	}
 
-	void set_method( Args &args, std::string const &key ) {
+	void set_method( Args &args, Key const &key ) {
 		//Delete from the map if the value to insert is undefined
 		if( args[1]->IsUndefined() )
 			return delete_method( args, key );
@@ -100,7 +101,7 @@ private:
 		args.GetReturnValue().Set( args.This() );
 	}
 
-	void delete_method( Args &args, std::string const &key ) {
+	void delete_method( Args &args, Key const &key ) {
 		map.erase( key );
 
 		args.GetReturnValue().Set( args.This() );
