@@ -1,5 +1,6 @@
 #include <node.h>
 #include "object_wrap.h"
+#include "object_builder.h"
 #include <unordered_map>
 #include <tuple>
 #include <string>
@@ -33,26 +34,24 @@ struct Element {
 
 class WeakValueMap : public ObjectWrap {
 public:
-	static void Init(v8::Local<v8::Object> exports) {
-		auto isolate = exports->GetIsolate();
+	static void Init( v8::Local<v8::Object> _exports ) {
+		ObjectBuilder exports { v8::Isolate::GetCurrent(), _exports };
 
-		//Create constructor funtion template
-		auto tpl = v8::FunctionTemplate::New(isolate, New);
-		tpl->SetClassName(v8::String::NewFromUtf8(isolate, "WeakValueMap"));
-		tpl->InstanceTemplate()->SetInternalFieldCount(1);
-
-		//Set class prototype methods
-		NODE_SET_PROTOTYPE_METHOD(tpl, "set", Set);
-		NODE_SET_PROTOTYPE_METHOD(tpl, "delete", Delete);
-		NODE_SET_PROTOTYPE_METHOD(tpl, "get", Get);
-
-		exports->Set(v8::String::NewFromUtf8(isolate, "WeakValueMap"), tpl->GetFunction());
+		exports.add_class( "WeakValueMap", constructor, []( ClassBuilder cls ) {
+			cls.set_internal_field_count( 1 );
+			cls.add_property( "size", size_getter );
+			cls.add_method( "get",    wrap<&WeakValueMap::get_method> );
+			cls.add_method( "set",    wrap<&WeakValueMap::set_method> );
+			cls.add_method( "delete", wrap<&WeakValueMap::delete_method> );
+		});
 	}
 
 private:
 	Map map;
 
-	static void New(v8::FunctionCallbackInfo<v8::Value> const &args) {
+	using Args = v8::FunctionCallbackInfo<v8::Value> const;
+
+	static void constructor( Args &args ) {
 		auto isolate = args.GetIsolate();
 
 		//Make sure this is a new-call or throw a type error
@@ -67,39 +66,44 @@ private:
 		args.GetReturnValue().Set(args.This());
 	}
 
-	static void Set(v8::FunctionCallbackInfo<v8::Value> const &args) {
+	static void size_getter( v8::Local<v8::String>, v8::PropertyCallbackInfo<v8::Value> const &info ) {
+		auto obj = ObjectWrap::Unwrap<WeakValueMap>( info.Holder() );
+		info.GetReturnValue().Set( (uint32_t) obj->map.size() );
+	}
+
+	using method_t = void (WeakValueMap::*)( Args &args, std::string const &key );
+
+	template< method_t method >
+	static void wrap( Args &args ) {
+		auto obj = ObjectWrap::Unwrap<WeakValueMap>( args.Holder() );
+		auto &&key = v8::String::Utf8Value{ args.GetIsolate(), args[0]->ToString() };
+		if( *key )
+			(obj->*method)( args, *key );
+	}
+
+	void get_method( Args &args, std::string const &key ) {
+		auto i = map.find( key );
+		if( i != map.end() )
+			args.GetReturnValue().Set( i->second.value );
+	}
+
+	void set_method( Args &args, std::string const &key ) {
 		//Delete from the map if the value to insert is undefined
-		if (args[1]->IsUndefined())
-			return WeakValueMap::Delete(args);
+		if( args[1]->IsUndefined() )
+			return delete_method( args, key );
 
-		auto isolate = args.GetIsolate();
-		auto obj = ObjectWrap::Unwrap<WeakValueMap>(args.Holder());
+		auto i = map.emplace( std::piecewise_construct,
+				std::forward_as_tuple( key ),
+				std::forward_as_tuple( map, key ) ).first;
+		i->second.set( args.GetIsolate(), args[1] );
 
-		auto key = std::string(*v8::String::Utf8Value(args[0]->ToString()));
-		auto i = obj->map.emplace( std::piecewise_construct,
-				std::forward_as_tuple(key),
-				std::forward_as_tuple(obj->map, key)).first;
-		i->second.set(isolate, args[1]);
-
-		args.GetReturnValue().Set(args.Holder());
+		args.GetReturnValue().Set( args.This() );
 	}
 
-	static void Delete(v8::FunctionCallbackInfo<v8::Value> const &args) {
-		auto obj = ObjectWrap::Unwrap<WeakValueMap>(args.Holder());
+	void delete_method( Args &args, std::string const &key ) {
+		map.erase( key );
 
-		auto key = std::string(*v8::String::Utf8Value(args[0]->ToString()));
-		obj->map.erase(key);
-
-		args.GetReturnValue().Set(args.Holder());
-	}
-
-	static void Get(v8::FunctionCallbackInfo<v8::Value> const &args) {
-		auto obj = ObjectWrap::Unwrap<WeakValueMap>(args.Holder());
-
-		auto key = std::string(*v8::String::Utf8Value(args[0]->ToString()));
-		auto i = obj->map.find(key);
-		if (i != obj->map.end())
-			args.GetReturnValue().Set(i->second.value);
+		args.GetReturnValue().Set( args.This() );
 	}
 };
 
