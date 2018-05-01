@@ -4,13 +4,13 @@ var WeakValueMap = require('./');
 var test = require('tape');
 
 test('map', function(assert) {
-	var map = new WeakValueMap();
+	let map = new WeakValueMap();
 	map.set(1, 'one')
 	   .set(2, 2)
 	   .set(3, true)
 	   .set(4, false);
-	var d1 = new Date();
-	var d2 = new Date(d1);
+	let d1 = new Date();
+	let d2 = new Date(d1);
 	map.set(5, d1);
 	map.set(6, {6: 'six'});
 	assert.strictEqual(map.get(1), 'one');
@@ -27,7 +27,7 @@ test('map', function(assert) {
 });
 
 test('gc', function(assert) {
-	var map = new WeakValueMap();
+	let map = new WeakValueMap();
 	let obj = {a: 1234, b: 'test', c: {d: 'testing'}};
 	let obj1 = Object.assign({}, obj);
 	let obj2 = Object.assign({}, obj);
