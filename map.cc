@@ -46,7 +46,7 @@ public:
 		NODE_SET_PROTOTYPE_METHOD(tpl, "delete", Delete);
 		NODE_SET_PROTOTYPE_METHOD(tpl, "get", Get);
 
-		exports->Set(v8::String::NewFromUtf8(isolate, "WeakValueMap"), tpl->GetFunction());
+		exports->Set(isolate->GetCurrentContext(), v8::String::NewFromUtf8(isolate, "WeakValueMap"), tpl->GetFunction(isolate->GetCurrentContext()).ToLocalChecked());
 	}
 
 private:
@@ -75,7 +75,7 @@ private:
 		auto isolate = args.GetIsolate();
 		auto obj = ObjectWrap::Unwrap<WeakValueMap>(args.Holder());
 
-		auto key = std::string(*v8::String::Utf8Value(args[0]->ToString()));
+		auto key = std::string(*v8::String::Utf8Value(isolate, args[0]->ToString(isolate)));
 		auto i = obj->map.emplace( std::piecewise_construct,
 				std::forward_as_tuple(key),
 				std::forward_as_tuple(obj->map, key)).first;
@@ -85,18 +85,20 @@ private:
 	}
 
 	static void Delete(v8::FunctionCallbackInfo<v8::Value> const &args) {
+		auto isolate = args.GetIsolate();
 		auto obj = ObjectWrap::Unwrap<WeakValueMap>(args.Holder());
 
-		auto key = std::string(*v8::String::Utf8Value(args[0]->ToString()));
+		auto key = std::string(*v8::String::Utf8Value(isolate, args[0]->ToString(isolate)));
 		obj->map.erase(key);
 
 		args.GetReturnValue().Set(args.Holder());
 	}
 
 	static void Get(v8::FunctionCallbackInfo<v8::Value> const &args) {
+		auto isolate = args.GetIsolate();
 		auto obj = ObjectWrap::Unwrap<WeakValueMap>(args.Holder());
 
-		auto key = std::string(*v8::String::Utf8Value(args[0]->ToString()));
+		auto key = std::string(*v8::String::Utf8Value(isolate, args[0]->ToString(isolate)));
 		auto i = obj->map.find(key);
 		if (i != obj->map.end())
 			args.GetReturnValue().Set(i->second.value);

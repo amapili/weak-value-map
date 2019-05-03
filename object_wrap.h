@@ -88,7 +88,7 @@ class ObjectWrap {
    */
   virtual void Ref() {
     assert(!persistent().IsEmpty());
-    assert(!persistent().IsNearDeath());
+    //assert(!persistent().IsNearDeath());
     persistent().ClearWeak();
     refs_++;
   }
@@ -104,7 +104,7 @@ class ObjectWrap {
    */
   virtual void Unref() {
     assert(!persistent().IsEmpty());
-    assert(!persistent().IsNearDeath());
+    //assert(!persistent().IsNearDeath());
     assert(!persistent().IsWeak());
     assert(refs_ > 0);
     if (--refs_ == 0)
@@ -118,7 +118,7 @@ class ObjectWrap {
       const v8::WeakCallbackInfo<ObjectWrap>& data) {
     ObjectWrap* wrap = data.GetParameter();
     assert(wrap->refs_ == 0);
-    assert(wrap->handle_.IsNearDeath());
+    //assert(wrap->handle_.IsNearDeath());
     wrap->handle_.Reset();
     data.SetSecondPassCallback(WeakCallback2);
   }
