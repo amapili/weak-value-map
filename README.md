@@ -41,6 +41,6 @@ map.get(3)
 // => "hijk"
 ```
 
-##License
+## License
 
 MIT
