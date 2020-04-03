@@ -5,7 +5,6 @@
 
 Napi::Object WeakValueMap::Init(Napi::Env env, Napi::Object exports)
 {
-    Napi::HandleScope scope(env);
     auto cons = DefineClass(env, "WeakValueMap", {InstanceMethod("get", &WeakValueMap::Get), InstanceMethod("set", &WeakValueMap::Set), InstanceMethod("delete", &WeakValueMap::Delete)});
     constructor = Napi::Persistent(cons);
     constructor.SuppressDestruct();
@@ -21,8 +20,6 @@ Napi::Object WeakValueMap::Init(Napi::Env env, Napi::Object exports)
 
 WeakValueMap::WeakValueMap(const Napi::CallbackInfo &info) : Napi::ObjectWrap<WeakValueMap>(info), size(DEFAULT_SIZE), map1(info.Env()), map2(info.Env())
 {
-    Napi::Env env = info.Env();
-    Napi::HandleScope scope(env);
     if (info.Length())
     {
         auto args = info[0].As<Napi::Object>();
@@ -57,8 +54,6 @@ Napi::Value WeakValueMap::fromObject(Napi::Value val)
 
 Napi::Value WeakValueMap::Get(const Napi::CallbackInfo &info)
 {
-    Napi::Env env = info.Env();
-    Napi::HandleScope scope(env);
     auto key = info[0];
     auto ind = map1.Get(key);
     if (ind.IsNumber())
@@ -85,8 +80,6 @@ Napi::Value WeakValueMap::Get(const Napi::CallbackInfo &info)
 
 Napi::Value WeakValueMap::Set(const Napi::CallbackInfo &info)
 {
-    Napi::Env env = info.Env();
-    Napi::HandleScope scope(env);
     if (refs1.size() >= size)
     {
         refs2 = std::move(refs1);
