@@ -13,10 +13,9 @@ $ npm install weak-value-map
 Initialization
 
 ```js
-'use strict';
-var WeakValueMap = require('weak-value-map');
+import WeakValueMap from 'weak-value-map'
 
-var map = new WeakValueMap();
+const map = new WeakValueMap()
 ```
 
 Insertion / Deletion
@@ -24,21 +23,21 @@ Insertion / Deletion
 ```js
 map.set(1, "abcd")
    .set(2, "efg")
-   .set(3, "hijk");
+   .set(3, "hijk")
 
-map.delete(2);
+map.delete(2)
 ```
 
 Retrieval
 
 ```js
-map.get(1);
+map.get(1)
 // => "abcd"
 
-map.get(2);
+map.get(2)
 // => undefined
 
-map.get(3);
+map.get(3)
 // => "hijk"
 ```
 
